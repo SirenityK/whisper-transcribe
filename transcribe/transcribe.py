@@ -5,7 +5,9 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Transcribe a video')
 parser.add_argument('link', type=str, help='link to the video')
-parser.add_argument('--model', type=str, help='select the model to use', default='medium')
+# allow tab completion for model names  
+parser.add_argument('--model', type=str, help='select the model to use', default='medium', choices=['tiny', 'base', 'medium', 'large', 'large-v2'])
+
 parser.add_argument('--use-gpu', type=bool, help='use gpu if available', default=True)
 args = parser.parse_args()
 
@@ -42,6 +44,7 @@ def run():
     ydl_opts = {
         'format': 'm4a/bestaudio/best',
         'outtmpl': f'{vpath}/buffer.%(ext)s',
+        'forceurl': True,
         # ℹ️ See help(yt_dlp.postprocessor) for a list of available Postprocessors and their arguments
         'postprocessors': [{  # Extract audio using ffmpeg
             'key': 'FFmpegExtractAudio',
