@@ -1,4 +1,4 @@
-from . import transcribe
+from .transcription import run
 
 def main():
-    transcribe.run()
+    run()
