@@ -52,14 +52,20 @@ def run():
         }]
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        error_code = ydl.download([args.link])
+    #check first if args.link is the path to a local file
+    if os.path.isfile(args.link):
+        vpath = os.path.dirname(args.link)
+        bpath = args.link
 
-    videos = os.listdir(vpath)
-    for video in videos:
-        if video.startswith('buffer'):
-            bpath = f'{vpath}/{video}'
-            break 
+    else:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            error_code = ydl.download([args.link])
+
+        videos = os.listdir(vpath)
+        for video in videos:
+            if video.startswith('buffer'):
+                bpath = f'{vpath}/{video}'
+                break 
 
     # Use the model to transcribe the video, use GPU if available
     model = WhisperModel(args.model, device=device)
