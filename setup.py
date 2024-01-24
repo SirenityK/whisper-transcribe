@@ -1,14 +1,14 @@
 from setuptools import setup
 
-# there's a python script called transcribe.py in . which is the main script, add to path
 setup(
     name='whisper-transcribe',
-    version='1.0',
+    version='1.10',
+    license='MIT',
     install_requires=[
         'faster-whisper',
-        'yt-dlp',
+        'pyperclip',
+        'yt-dlp'
     ],
-    # add to path
     entry_points= {
         'console_scripts': [
             'transcribe=transcribe:main'

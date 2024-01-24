@@ -1,28 +1,34 @@
 from faster_whisper import WhisperModel
 import os
 import yt_dlp
+import pyperclip
+import platform
 import argparse
 
+clipboard = pyperclip.paste()
 parser = argparse.ArgumentParser(description='Transcribe a video')
-parser.add_argument('link', type=str, help='link to the video')
-# allow tab completion for model names  
-parser.add_argument('--model', type=str, help='select the model to use', default='medium', choices=['tiny', 'base', 'medium', 'large', 'large-v2'])
-
-parser.add_argument('--use-gpu', type=bool, help='use gpu if available', default=True)
+parser.add_argument('link', type=str, help='link to the video', default=clipboard, nargs='?')
+parser.add_argument('--model', type=str, help='select the model to use', default='base', choices=['tiny', 'base', 'medium', 'large', 'large-v2'])
+parser.add_argument('--device', type=bool, help='select a device', default='cuda', choices=['cuda', 'cpu'])
 args = parser.parse_args()
 
+device = 'cpu'
 try:
-    if not args.use_gpu:
+    if args.device == 'cpu':
         raise Exception('GPU support is disabled, continuing with CPU')
     
+    if os.getenv('LD_LIBRARY_PATH') is None:
+        raise ModuleNotFoundError('LD_LIBRARY_PATH is not set, please set it to the path of your CUDA installation. Run the following command before running this script:\n\t' +
+            'export LD_LIBRARY_PATH=`python -c \'import os; import nvidia.cublas.lib; import nvidia.cudnn.lib; print(os.path.dirname(nvidia.cublas.lib.__file__) + ":" + os.path.dirname(nvidia.cudnn.lib.__file__))\'`')
+
     import nvidia.cublas.lib
     import nvidia.cudnn.lib
     device = 'cuda'
 except ModuleNotFoundError as e:
-    if args.use_gpu:
-        print('GPU support not found, continuing with CPU')
+    if args.device == 'cuda':
         print(e)
-    device = 'cpu'
+finally:
+    print(f'Using device: {device}')
 
 def map_time(seconds):
         if seconds > 60:
@@ -33,33 +39,36 @@ def map_time(seconds):
             return f'{int(seconds)}s'
 
 def run():
+    if args.link == clipboard:
+        print('No link provided, using clipboard')
     try:
-        vpath = '/home/' + os.environ['USER'] + '/Videos'
+        if platform.system() == 'Linux':
+            vpath = os.path.join(os.environ['HOME'], 'Videos')
+        elif platform.system() == 'Windows':
+            vpath = os.path.join(os.environ['USERPROFILE'], 'Videos')
+        if not os.path.exists(vpath):
+            os.mkdir(vpath)
         os.chdir(vpath)
     except KeyError:
         vpath = os.getcwd()
 
-
-    # os.system(f'yt-dlp -x {args.link} -o \'{vpath}/buffer.%(ext)s\'')
     ydl_opts = {
         'format': 'm4a/bestaudio/best',
         'outtmpl': f'{vpath}/buffer.%(ext)s',
         'forceurl': True,
-        # ℹ️ See help(yt_dlp.postprocessor) for a list of available Postprocessors and their arguments
-        'postprocessors': [{  # Extract audio using ffmpeg
+        'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'm4a',
         }]
     }
 
-    #check first if args.link is the path to a local file
     if os.path.isfile(args.link):
         vpath = os.path.dirname(args.link)
         bpath = args.link
 
     else:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            error_code = ydl.download([args.link])
+            ydl.download([args.link])
 
         videos = os.listdir(vpath)
         for video in videos:
@@ -67,7 +76,6 @@ def run():
                 bpath = f'{vpath}/{video}'
                 break 
 
-    # Use the model to transcribe the video, use GPU if available
     model = WhisperModel(args.model, device=device)
 
     segments, info = model.transcribe(bpath)
@@ -79,14 +87,19 @@ def run():
 
     for segment in segments:
         start, end = map_time(segment.start), map_time(segment.end)
-        text = segment.text
-        out.append(f'[{start} -> {end}]: {text}')
+        text = segment.text[1:] # [1:] removes the trailing space at the beginning
+        message = f'[{start} -> {end}]: {text}\n'
+        out.append(message)
         tx.append(text)
-        print(f'[{start} -> {end}]: {text}')
+        print(message, end='')
 
     with open('transcript.txt', 'w') as f:
-        f.write('\n'.join(out))
-        f.write('\n\n')
+        f.seek(0)
+        f.truncate(0)
+        f.writelines(out)
+        f.writelines([
+            '\n\nFull transcript:\n',
+        ])
         f.write('\n'.join(tx))
 
     os.remove(bpath)

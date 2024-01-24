@@ -1,2 +1,3 @@
 build/
+dist/
 whisper_transcribe.egg-info/
