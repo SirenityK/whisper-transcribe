@@ -16,13 +16,13 @@ device = 'cpu'
 try:
     if args.device == 'cpu':
         raise Exception('GPU support is disabled, continuing with CPU')
-    
-    if os.getenv('LD_LIBRARY_PATH') is None:
-        raise ModuleNotFoundError('LD_LIBRARY_PATH is not set, please set it to the path of your CUDA installation. Run the following command before running this script:\n\t' +
-            'export LD_LIBRARY_PATH=`python -c \'import os; import nvidia.cublas.lib; import nvidia.cudnn.lib; print(os.path.dirname(nvidia.cublas.lib.__file__) + ":" + os.path.dirname(nvidia.cudnn.lib.__file__))\'`')
 
     import nvidia.cublas.lib
     import nvidia.cudnn.lib
+    if not os.getenv('LD_LIBRARY_PATH'):
+        raise ModuleNotFoundError('CUDA support is detected, but LD_LIBRARY_PATH is not set, please set it to the path of your CUDA installation. Run the following command before running this script to do it:\n\t' +
+            'export LD_LIBRARY_PATH=`python -c \'import os; import nvidia.cublas.lib; import nvidia.cudnn.lib; print(os.path.dirname(nvidia.cublas.lib.__file__) + ":" + os.path.dirname(nvidia.cudnn.lib.__file__))\'`')
+
     device = 'cuda'
 except ModuleNotFoundError as e:
     if args.device == 'cuda':
